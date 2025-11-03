@@ -1,26 +1,30 @@
 package com.example.losalcesfc.ui.login
 
-import androidx.lifecycle.ViewModel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.losalcesfc.data.repository.AuthRepository
+import com.example.losalcesfc.data.local.SessionPrefs
+import com.example.losalcesfc.data.model.Usuario
+import com.example.losalcesfc.data.repository.UsuarioRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class LoginViewModel : ViewModel() {
+class LoginViewModel(app: Application) : AndroidViewModel(app) {
 
-
-    private val authRepository = AuthRepository.instance
+    private val repo = UsuarioRepository.instance(app)
+    private val prefs = SessionPrefs.get(app)
 
     private val _ui = MutableStateFlow(LoginUiState())
     val ui: StateFlow<LoginUiState> = _ui
 
-    fun onEmailChange(value: String) {
-        _ui.value = _ui.value.copy(emailOrRut = value, emailError = null, authError = null)
+    fun onEmailChange(v: String) {
+        _ui.value = _ui.value.copy(emailOrRut = v, emailError = null, authError = null)
     }
 
-    fun onPasswordChange(value: String) {
-        _ui.value = _ui.value.copy(password = value, pwdError = null, authError = null)
+    fun onPasswordChange(v: String) {
+        _ui.value = _ui.value.copy(password = v, pwdError = null, authError = null)
     }
 
     fun submit(onSuccess: () -> Unit) {
@@ -29,7 +33,7 @@ class LoginViewModel : ViewModel() {
         var pwdErr: String? = null
 
         if (s.emailOrRut.isBlank()) emailErr = "Campo requerido"
-        if (s.password.length < 6)   pwdErr  = "Mínimo 6 caracteres"
+        if (s.password.length < 4)    pwdErr  = "Mínimo 4 caracteres"
 
         if (emailErr != null || pwdErr != null) {
             _ui.value = s.copy(emailError = emailErr, pwdError = pwdErr)
@@ -39,28 +43,32 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             _ui.value = _ui.value.copy(isLoading = true, authError = null)
 
-
-            val result = authRepository.login(s.emailOrRut, s.password)
-
-            _ui.value = _ui.value.copy(isLoading = false)
-
-            result.fold(
-                onSuccess = { onSuccess() },
-                onFailure = { e ->
-                    _ui.value = _ui.value.copy(authError = e.message ?: "Credenciales inválidas")
-                }
+            // Validación con contraseña en TEXTO PLANO
+            val user: Usuario? = repo.validarLogin(
+                emailOrRut = s.emailOrRut.trim(),
+                passwordPlain = s.password
             )
-        }
-    }
 
-    fun sendResetEmail(email: String, onResult: (success: Boolean, message: String) -> Unit) {
-        viewModelScope.launch {
-            val result = authRepository.requestPasswordReset(email)
-            if (result.isSuccess) {
-                onResult(true, "Si el correo existe, te enviaremos un enlace a $email.")
+            if (user != null) {
+                // Guarda la sesión (DataStore)
+                prefs.setLoggedIn(user.email)
+
+                _ui.value = _ui.value.copy(isLoading = false)
+                onSuccess()
             } else {
-                onResult(false, result.exceptionOrNull()?.message ?: "Error al procesar la solicitud")
+                _ui.value = _ui.value.copy(
+                    isLoading = false,
+                    authError = "Credenciales inválidas o usuario inactivo"
+                )
             }
         }
     }
+
+    // Demo de reset password (mock)
+    fun sendResetEmail(email: String, cb: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            cb(true, "Si el correo existe, te enviaremos un enlace a $email.")
+        }
+    }
 }
+

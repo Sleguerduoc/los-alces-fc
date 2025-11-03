@@ -76,7 +76,7 @@ fun EditarSocioScreen(
     var pendingFile by remember { mutableStateOf<File?>(null) }
     var pendingUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Precarga cuando llega el socio
+
     LaunchedEffect(socio) {
         socio?.let {
             nombre = it.nombre
@@ -319,7 +319,6 @@ fun EditarSocioScreen(
     }
 }
 
-/* --------- Helpers: salida de imagen --------- */
 
 private fun createImageOutput2(context: android.content.Context): Pair<File, Uri> {
     val dir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)

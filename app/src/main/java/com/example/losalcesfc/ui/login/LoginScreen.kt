@@ -211,7 +211,7 @@ fun LoginScreen(
         }
     }
 
-    // ---- Diálogo de recuperación ----
+
     if (forgotOpen) {
         AlertDialog(
             onDismissRequest = { forgotOpen = false },

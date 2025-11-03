@@ -13,23 +13,27 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
+
+// Navigation Compose
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 import com.example.losalcesfc.ui.theme.AzulPrimary
 import com.example.losalcesfc.ui.theme.DoradoAccent
 import com.example.losalcesfc.ui.theme.PanelBg
 
+// Pantallas
 import com.example.losalcesfc.view.NuevoSocioScreen
 import com.example.losalcesfc.view.ListaSociosScreen
 import com.example.losalcesfc.view.AjustesScreen
 import com.example.losalcesfc.view.UsuariosMenuScreen
 import com.example.losalcesfc.view.NuevoUsuarioScreen
 import com.example.losalcesfc.view.ListaUsuariosScreen
+import com.example.losalcesfc.view.EditarSocioScreen
 
 data class DrawerItem(
     val label: String,
@@ -44,12 +48,7 @@ object DrawerRoutes {
     const val SOCIOS_MENU = "socios_menu"
     const val NUEVO_SOCIO = "nuevo_socio"
     const val LISTA_SOCIOS = "lista_socios"
-
-    // Ajustes / Usuarios
-    const val AJUSTES = "ajustes"
-    const val USUARIOS_MENU = "usuarios_menu"
-    const val NUEVO_USUARIO = "nuevo_usuario"
-    const val LISTA_USUARIOS = "lista_usuarios"
+    const val EDITAR_SOCIO = "editar_socio/{id}"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,27 +58,21 @@ fun DrawerMenu(
     userEmail: String? = null,
     onLogout: () -> Unit,
 ) {
-    // Ítems del Drawer (lado izquierdo)
     val items = listOf(
-        DrawerItem("Inicio",  Icons.Filled.Home,         DrawerRoutes.INICIO),
-        DrawerItem("Socios",  Icons.Filled.Group,        DrawerRoutes.SOCIOS_MENU),
-        DrawerItem("Ajustes", Icons.Filled.Settings,     DrawerRoutes.AJUSTES),
-        // Puedes agregar después: Equipos, Finanzas, etc.
+        DrawerItem("Inicio",  Icons.Filled.Home,     DrawerRoutes.INICIO),
+        DrawerItem("Socios",  Icons.Filled.Group,    DrawerRoutes.SOCIOS_MENU),
+        DrawerItem("Ajustes", Icons.Filled.Settings, "ajustes"),
     )
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-
-    // Nav interno para el contenido central del Drawer
     val innerNav = rememberNavController()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = false, // solo botón hamburguesa
+        gesturesEnabled = false,
         drawerContent = {
             ModalDrawerSheet(drawerContainerColor = PanelBg) {
-
-                // Header simple
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -104,11 +97,10 @@ fun DrawerMenu(
 
                 Divider()
 
-                // Lista de items
                 items.forEach { item ->
                     NavigationDrawerItem(
                         label = { Text(item.label) },
-                        selected = false, // si quieres marcar seleccionado, usa innerNav.currentBackStackEntry
+                        selected = false,
                         onClick = {
                             scope.launch { drawerState.close() }
                             innerNav.navigate(item.route) { launchSingleTop = true }
@@ -125,7 +117,6 @@ fun DrawerMenu(
 
                 Spacer(Modifier.weight(1f))
 
-                // Logout
                 NavigationDrawerItem(
                     label = { Text("Cerrar sesión") },
                     selected = false,
@@ -144,7 +135,6 @@ fun DrawerMenu(
             }
         }
     ) {
-        // Scaffold con botón hamburguesa
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
@@ -184,68 +174,82 @@ fun DrawerMenu(
     }
 }
 
-/* ===================  NAV INTERNO (contenido central)  =================== */
-
 @Composable
 private fun DrawerNav(nav: NavHostController) {
     NavHost(navController = nav, startDestination = DrawerRoutes.INICIO) {
 
-        /* --------- INICIO --------- */
-        composable(DrawerRoutes.INICIO) {
-            InicioPanel()
-        }
+        composable(DrawerRoutes.INICIO) { InicioPanel() }
 
-        /* --------- SOCIOS --------- */
+        // Menú Socios
         composable(DrawerRoutes.SOCIOS_MENU) {
             SociosMenuScreen(
                 onNuevoSocio = { nav.navigate(DrawerRoutes.NUEVO_SOCIO) },
                 onVerSocios  = { nav.navigate(DrawerRoutes.LISTA_SOCIOS) }
             )
         }
+
+        // Nuevo socio
         composable(DrawerRoutes.NUEVO_SOCIO) {
             NuevoSocioScreen(
                 onBack = { nav.popBackStack() },
-                onSaved = { nav.popBackStack() } // vuelve al menú de socios, ajusta si quieres
+                onSaved = { nav.popBackStack() }
             )
         }
+
+        // Lista de socios
         composable(DrawerRoutes.LISTA_SOCIOS) {
             ListaSociosScreen(
                 onBack = { nav.popBackStack() },
                 onNuevoSocio = { nav.navigate(DrawerRoutes.NUEVO_SOCIO) },
                 onEditarSocio = { socio ->
-                    nav.navigate("editar_socio/${socio.id}")  // <- aquí navegamos con el id
+
+                    if (socio.id > 0) {
+                        nav.navigate("editar_socio/${socio.id}")
+                    }
                 }
             )
         }
 
-        /* --------- AJUSTES / USUARIOS --------- */
-        composable(DrawerRoutes.AJUSTES) {
+
+        composable(
+            route = DrawerRoutes.EDITAR_SOCIO,
+            arguments = listOf(
+                navArgument("id") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val socioId = backStackEntry.arguments?.getInt("id") ?: 0
+            EditarSocioScreen(
+                socioId = socioId,
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // Ajustes / Usuarios (si los usas)
+        composable("ajustes") {
             AjustesScreen(
-                onGestionUsuarios = { nav.navigate(DrawerRoutes.USUARIOS_MENU) }
+                onGestionUsuarios = { nav.navigate("usuarios_menu") }
             )
         }
-        composable(DrawerRoutes.USUARIOS_MENU) {
+        composable("usuarios_menu") {
             UsuariosMenuScreen(
-                onNuevoUsuario = { nav.navigate(DrawerRoutes.NUEVO_USUARIO) },
-                onVerUsuarios  = { nav.navigate(DrawerRoutes.LISTA_USUARIOS) }
+                onNuevoUsuario = { nav.navigate("nuevo_usuario") },
+                onVerUsuarios  = { nav.navigate("lista_usuarios") }
             )
         }
-        composable(DrawerRoutes.NUEVO_USUARIO) {
+        composable("nuevo_usuario") {
             NuevoUsuarioScreen(
                 onBack = { nav.popBackStack() },
                 onSaved = { nav.popBackStack() }
             )
         }
-        composable(DrawerRoutes.LISTA_USUARIOS) {
+        composable("lista_usuarios") {
             ListaUsuariosScreen(
                 onBack = { nav.popBackStack() },
-                onEditarUsuario = { /* TODO: navegar a editar */ }
+                onEditarUsuario = { /* TODO */ }
             )
         }
     }
 }
-
-/* ====================  Contenido de INICIO (simple)  ===================== */
 
 @Composable
 private fun InicioPanel() {

@@ -296,12 +296,10 @@ fun NuevoSocioScreen(
     }
 }
 
-/* ----------------------- Utilidades ----------------------- */
 
 val emailRegex =
     Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
 
-/** Valida RUT chileno: 12.345.678-5 o 12345678-5 */
 fun esRutValido(input: String): Boolean {
     val cleaned = input.replace(".", "").replace("-", "").uppercase()
     if (cleaned.length < 2) return false
@@ -317,7 +315,6 @@ fun esRutValido(input: String): Boolean {
     return dv == dvCalc
 }
 
-/** Crea archivo destino + Uri para FileProvider en Pictures/ del app */
 private fun createImageOutput(context: android.content.Context): Pair<File, Uri> {
     val dir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         ?: throw IllegalStateException("No se pudo obtener la carpeta Pictures del app")

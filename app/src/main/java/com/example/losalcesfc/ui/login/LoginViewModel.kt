@@ -1,6 +1,5 @@
 package com.example.losalcesfc.ui.login
 
-
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,10 +13,17 @@ import kotlinx.coroutines.launch
 class LoginViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = UsuarioRepository.instance(app)
-    private val prefs = SessionPrefs.get(app)
+    private val session = SessionPrefs.get(app)
 
     private val _ui = MutableStateFlow(LoginUiState())
     val ui: StateFlow<LoginUiState> = _ui
+
+    init {
+        // Asegura un admin por defecto
+        viewModelScope.launch {
+            repo.seedAdminIfMissing()
+        }
+    }
 
     fun onEmailChange(v: String) {
         _ui.value = _ui.value.copy(emailOrRut = v, emailError = null, authError = null)
@@ -33,7 +39,7 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
         var pwdErr: String? = null
 
         if (s.emailOrRut.isBlank()) emailErr = "Campo requerido"
-        if (s.password.length < 4)    pwdErr  = "Mínimo 4 caracteres"
+        if (s.password.length < 4)   pwdErr = "Mínimo 4 caracteres"
 
         if (emailErr != null || pwdErr != null) {
             _ui.value = s.copy(emailError = emailErr, pwdError = pwdErr)
@@ -43,16 +49,14 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _ui.value = _ui.value.copy(isLoading = true, authError = null)
 
-            // Validación con contraseña en TEXTO PLANO
-            val user: Usuario? = repo.validarLogin(
-                emailOrRut = s.emailOrRut.trim(),
-                passwordPlain = s.password
+            val user: Usuario? = repo.validarLoginTextoPlano(
+                s.emailOrRut.trim(),
+                s.password
             )
 
             if (user != null) {
-                // Guarda la sesión (DataStore)
-                prefs.setLoggedIn(user.email)
-
+                // Persistimos sesión
+                session.setLoggedIn(user.email)
                 _ui.value = _ui.value.copy(isLoading = false)
                 onSuccess()
             } else {
@@ -64,11 +68,10 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // Demo de reset password (mock)
+
     fun sendResetEmail(email: String, cb: (Boolean, String) -> Unit) {
         viewModelScope.launch {
             cb(true, "Si el correo existe, te enviaremos un enlace a $email.")
         }
     }
 }
-

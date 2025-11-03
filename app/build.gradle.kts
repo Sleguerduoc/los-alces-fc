@@ -1,8 +1,13 @@
+import org.gradle.kotlin.dsl.kotlin
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+
+    kotlin("kapt")
 }
+
 
 android {
     namespace = "com.example.losalcesfc"
@@ -57,6 +62,19 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.navigation:navigation-compose:2.8.3")
+// Material Icons Extended (para íconos como Group, SportsSoccer, etc.)
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.foundation)
+    implementation("androidx.room:room-runtime:2.6.1")  // Versión actualizada
+    kapt("androidx.room:room-compiler:2.6.1")          // Misma versión
+    implementation("androidx.room:room-ktx:2.6.1")     // Misma versión
+
+
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

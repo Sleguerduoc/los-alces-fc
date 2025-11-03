@@ -13,8 +13,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-
-// Navigation Compose
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
@@ -24,7 +24,6 @@ import com.example.losalcesfc.ui.theme.AzulPrimary
 import com.example.losalcesfc.ui.theme.DoradoAccent
 import com.example.losalcesfc.ui.theme.PanelBg
 
-// IMPORTA tus pantallas reales:
 import com.example.losalcesfc.view.NuevoSocioScreen
 import com.example.losalcesfc.view.ListaSociosScreen
 import com.example.losalcesfc.view.AjustesScreen
@@ -214,8 +213,7 @@ private fun DrawerNav(nav: NavHostController) {
                 onBack = { nav.popBackStack() },
                 onNuevoSocio = { nav.navigate(DrawerRoutes.NUEVO_SOCIO) },
                 onEditarSocio = { socio ->
-                    // si ya tienes ruta editar con ID, agrégala aquí
-                    // nav.navigate("editar_socio/${socio.id}")
+                    nav.navigate("editar_socio/${socio.id}")  // <- aquí navegamos con el id
                 }
             )
         }

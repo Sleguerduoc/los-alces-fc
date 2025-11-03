@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 
 class LoginViewModel : ViewModel() {
 
-    // Instancia del repositorio (recuerda inicializarlo en MainActivity con AuthRepository.init)
+
     private val authRepository = AuthRepository.instance
 
     private val _ui = MutableStateFlow(LoginUiState())
@@ -39,7 +39,7 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             _ui.value = _ui.value.copy(isLoading = true, authError = null)
 
-            // Llamamos al repositorio DEMO (sin BD) para validar credenciales y guardar sesión
+
             val result = authRepository.login(s.emailOrRut, s.password)
 
             _ui.value = _ui.value.copy(isLoading = false)

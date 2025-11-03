@@ -44,7 +44,6 @@ fun DashboardContent(
             }
         }
 
-        // Accesos rápidos
         Card(
             colors = CardDefaults.cardColors(containerColor = DoradoAccent.copy(alpha = 0.15f)),
             modifier = Modifier.fillMaxWidth()

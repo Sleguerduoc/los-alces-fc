@@ -52,7 +52,6 @@ fun HomeScreen(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Logo (igual que en el login)
                 Image(
                     painter = painterResource(id = R.drawable.logo_duoc_alces),
                     contentDescription = "Logo Los Alces F.C.",
@@ -90,7 +89,6 @@ fun HomeScreen(
 
                 Spacer(Modifier.height(24.dp))
 
-                // Botón dorado (mismo estilo del login)
                 Button(
                     onClick = onComenzar,
                     shape = RoundedCornerShape(AppCornerRadius),

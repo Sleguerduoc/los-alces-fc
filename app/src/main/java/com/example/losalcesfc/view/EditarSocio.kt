@@ -45,42 +45,51 @@ import com.example.losalcesfc.utils.sonidoError
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NuevoSocioScreen(
+fun EditarSocioScreen(
+    socioId: Int,
     onBack: () -> Unit,
-    onSaved: (Socio) -> Unit = {}
+    socioVM: SocioViewModel = viewModel()
 ) {
-    val socioVM: SocioViewModel = viewModel()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
 
-    // --------- Estados del formulario ---------
+    // Cargar socio
+    var socio by remember { mutableStateOf<Socio?>(null) }
+    LaunchedEffect(socioId) {
+        socio = socioVM.obtenerPorId(socioId)
+    }
+
+    // Estados
     var nombre by remember { mutableStateOf("") }
     var rut by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
+
     val planes = listOf("Básico", "Plata", "Oro", "Premium")
     var planExpanded by remember { mutableStateOf(false) }
     var plan by remember { mutableStateOf(planes.first()) }
     var activo by remember { mutableStateOf(true) }
 
-    // Errores
-    var errNombre by remember { mutableStateOf<String?>(null) }
-    var errRut by remember { mutableStateOf<String?>(null) }
-    var errEmail by remember { mutableStateOf<String?>(null) }
-
-    fun validar(): Boolean {
-        errNombre = if (nombre.isBlank()) "Nombre requerido" else null
-        errRut = if (!esRutValido(rut)) "RUT inválido (formato 12.345.678-5)" else null
-        errEmail = if (!emailRegex.matches(email)) "Email inválido" else null
-        return errNombre == null && errRut == null && errEmail == null
-    }
-
-    // --------- Cámara ---------
+    // Foto
     var fotoPath by remember { mutableStateOf<String?>(null) }
     var pendingFile by remember { mutableStateOf<File?>(null) }
     var pendingUri by remember { mutableStateOf<Uri?>(null) }
 
+    // Precarga cuando llega el socio
+    LaunchedEffect(socio) {
+        socio?.let {
+            nombre = it.nombre
+            rut = it.rut
+            email = it.email
+            telefono = it.telefono ?: ""
+            plan = it.plan
+            activo = it.activo
+            fotoPath = it.fotoPath
+        }
+    }
+
+    // Cámara
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
@@ -96,7 +105,7 @@ fun NuevoSocioScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            val (file, uri) = createImageOutput(context)
+            val (file, uri) = createImageOutput2(context)
             pendingFile = file
             pendingUri = uri
             takePictureLauncher.launch(uri)
@@ -112,7 +121,7 @@ fun NuevoSocioScreen(
             requestPermissionLauncher = requestCameraPermission
         )
         if (hasPermission) {
-            val (file, uri) = createImageOutput(context)
+            val (file, uri) = createImageOutput2(context)
             pendingFile = file
             pendingUri = uri
             takePictureLauncher.launch(uri)
@@ -122,7 +131,7 @@ fun NuevoSocioScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Registrar nuevo socio", color = MaterialTheme.colorScheme.onPrimary) },
+                title = { Text("Editar socio", color = MaterialTheme.colorScheme.onPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = MaterialTheme.colorScheme.onPrimary)
@@ -134,6 +143,16 @@ fun NuevoSocioScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         containerColor = PanelBg
     ) { padding ->
+        if (socio == null) {
+            Box(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) { CircularProgressIndicator() }
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -143,8 +162,7 @@ fun NuevoSocioScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Foto (preview)
-            if (fotoPath != null) {
+            if (!fotoPath.isNullOrBlank()) {
                 val bmp = remember(fotoPath) { decodeScaledBitmap(fotoPath!!, 512) }
                 if (bmp != null) {
                     Image(
@@ -165,16 +183,13 @@ fun NuevoSocioScreen(
             ) {
                 Icon(Icons.Filled.CameraAlt, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (fotoPath == null) "Tomar foto" else "Repetir foto")
+                Text(if (fotoPath.isNullOrBlank()) "Tomar foto" else "Reemplazar foto")
             }
 
-            // --- Campos ---
             OutlinedTextField(
                 value = nombre,
-                onValueChange = { nombre = it; errNombre = null },
+                onValueChange = { nombre = it },
                 label = { Text("Nombre completo") },
-                isError = errNombre != null,
-                supportingText = { if (errNombre != null) Text(errNombre!!) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth()
@@ -182,10 +197,8 @@ fun NuevoSocioScreen(
 
             OutlinedTextField(
                 value = rut,
-                onValueChange = { rut = it; errRut = null },
+                onValueChange = { rut = it },
                 label = { Text("RUT (12.345.678-5)") },
-                isError = errRut != null,
-                supportingText = { if (errRut != null) Text(errRut!!) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth()
@@ -193,10 +206,8 @@ fun NuevoSocioScreen(
 
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it; errEmail = null },
+                onValueChange = { email = it },
                 label = { Text("Email") },
-                isError = errEmail != null,
-                supportingText = { if (errEmail != null) Text(errEmail!!) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Next,
@@ -244,6 +255,8 @@ fun NuevoSocioScreen(
                 }
             }
 
+            Spacer(Modifier.height(8.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -253,7 +266,7 @@ fun NuevoSocioScreen(
                 Switch(checked = activo, onCheckedChange = { activo = it })
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -264,61 +277,51 @@ fun NuevoSocioScreen(
                 }
                 Button(
                     onClick = {
-                        if (validar()) {
-                            val socio = Socio(
-                                nombre = nombre.trim(),
-                                rut = rut.trim(),
-                                email = email.trim(),
-                                telefono = telefono.trim().ifBlank { null },
-                                plan = plan,
-                                activo = activo,
-                                fotoPath = fotoPath
-                            )
-                            socioVM.guardar(socio)
-                            vibrarCorto(context); sonidoConfirmacion()
-                            scope.launch { snackbar.showSnackbar("Socio registrado: ${socio.nombre}") }
-                            onSaved(socio)
-                        } else {
+                        if (nombre.isBlank()) {
                             vibrarError(context); sonidoError()
-                            scope.launch { snackbar.showSnackbar("Revisa los campos marcados") }
+                            scope.launch { snackbar.showSnackbar("Nombre requerido") }
+                            return@Button
+                        }
+                        if (!esRutValido(rut)) {
+                            vibrarError(context); sonidoError()
+                            scope.launch { snackbar.showSnackbar("RUT inválido") }
+                            return@Button
+                        }
+
+                        val actualizado = socio!!.copy(
+                            nombre = nombre.trim(),
+                            rut = rut.trim(),
+                            email = email.trim(),
+                            telefono = telefono.trim().ifBlank { null },
+                            plan = plan,
+                            activo = activo,
+                            fotoPath = fotoPath
+                        )
+
+                        scope.launch {
+                            runCatching { socioVM.actualizar(actualizado) }
+                                .onSuccess {
+                                    vibrarCorto(context); sonidoConfirmacion()
+                                    snackbar.showSnackbar("Socio actualizado")
+                                    onBack()
+                                }
+                                .onFailure {
+                                    vibrarError(context); sonidoError()
+                                    snackbar.showSnackbar("Error: ${it.message}")
+                                }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = DoradoAccent,
-                        contentColor = Color(0xFF1B1B1B)
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = DoradoAccent),
                     modifier = Modifier.weight(1f)
-                ) { Text("Guardar") }
+                ) { Text("Guardar cambios") }
             }
-
-            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
-/* ----------------------- Utilidades ----------------------- */
+/* --------- Helpers: salida de imagen --------- */
 
-val emailRegex =
-    Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
-
-/** Valida RUT chileno: 12.345.678-5 o 12345678-5 */
-fun esRutValido(input: String): Boolean {
-    val cleaned = input.replace(".", "").replace("-", "").uppercase()
-    if (cleaned.length < 2) return false
-    val dv = cleaned.last()
-    val num = cleaned.dropLast(1)
-    if (num.any { !it.isDigit() }) return false
-
-    var s = 1
-    num.reversed().forEachIndexed { i, ch ->
-        s = (s + (ch.code - 48) * (9 - (i % 6))) % 11
-    }
-    val dvCalc = if (s == 0) 'K' else (s + 47).toChar()
-    return dv == dvCalc
-}
-
-/** Crea archivo destino + Uri para FileProvider en Pictures/ del app */
-private fun createImageOutput(context: android.content.Context): Pair<File, Uri> {
+private fun createImageOutput2(context: android.content.Context): Pair<File, Uri> {
     val dir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         ?: throw IllegalStateException("No se pudo obtener la carpeta Pictures del app")
     if (!dir.exists()) dir.mkdirs()

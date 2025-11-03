@@ -11,5 +11,6 @@ data class Socio(
     val email: String,
     val telefono: String?,
     val plan: String,
-    val activo: Boolean
+    val activo: Boolean,
+    val fotoPath: String? = null // 👈 nuevo campo
 )

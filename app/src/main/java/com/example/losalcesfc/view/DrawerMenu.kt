@@ -2,14 +2,21 @@ package com.example.losalcesfc.view
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -17,12 +24,6 @@ import com.example.losalcesfc.ui.theme.AzulPrimary
 import com.example.losalcesfc.ui.theme.DoradoAccent
 import com.example.losalcesfc.ui.theme.PanelBg
 import kotlinx.coroutines.launch
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.List
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.lazy.items
-
-
 
 // ------- Navigation Compose (nav interno del Drawer) -------
 import androidx.navigation.NavHostController
@@ -30,8 +31,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 
-// 👇 si tu NuevoSocioScreen está en otro package, ajusta este import:
+// Pantallas internas del Drawer (en este mismo package)
 import com.example.losalcesfc.view.NuevoSocioScreen
+import com.example.losalcesfc.view.ListaSociosScreen
+import com.example.losalcesfc.view.EditarSocioScreen
 
 data class DrawerItem(
     val label: String,
@@ -45,6 +48,7 @@ object DrawerRoutes {
     const val SOCIOS_MENU = "socios_menu"
     const val NUEVO_SOCIO = "nuevo_socio"
     const val LISTA_SOCIOS = "lista_socios"
+    const val EDITAR_SOCIO = "editar_socio/{id}"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,8 +56,7 @@ object DrawerRoutes {
 fun DrawerMenu(
     userName: String,
     userEmail: String? = null,
-    // 'current' ya no se usa para seleccionar visualmente (el contenido ahora lo maneja el nav interno),
-    // pero lo mantenemos para no romper llamadas existentes.
+
     current: String = DrawerRoutes.INICIO,
     onLogout: () -> Unit,
 ) {
@@ -68,7 +71,6 @@ fun DrawerMenu(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // 👇 controlador de navegación interno (contenido principal del Drawer)
     val innerNav = rememberNavController()
 
     ModalNavigationDrawer(
@@ -109,13 +111,13 @@ fun DrawerMenu(
                         selected = false,
                         onClick = {
                             scope.launch { drawerState.close() }
-                            // 👉 navegación interna del Drawer
+                            // Navegación interna del Drawer
                             when (item.id) {
                                 DrawerRoutes.INICIO      -> innerNav.navigate(DrawerRoutes.INICIO)      { launchSingleTop = true }
                                 DrawerRoutes.SOCIOS_MENU -> innerNav.navigate(DrawerRoutes.SOCIOS_MENU) { launchSingleTop = true }
-                                "equipos"   -> { /* TODO: agrega ruta cuando tengas pantalla */ }
-                                "finanzas"  -> { /* TODO */ }
-                                "ajustes"   -> { /* TODO */ }
+                                "equipos"   -> {  }
+                                "finanzas"  -> { }
+                                "ajustes"   -> { }
                             }
                         },
                         icon = { Icon(item.icon, contentDescription = null) },
@@ -149,7 +151,7 @@ fun DrawerMenu(
             }
         }
     ) {
-        // Scaffold con botón hamburguesa para abrir el drawer
+
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
@@ -183,16 +185,12 @@ fun DrawerMenu(
                     .padding(padding),
                 contentAlignment = Alignment.TopCenter
             ) {
-                // 👇 Aquí vive la navegación interna del Drawer
                 DrawerNav(nav = innerNav)
             }
         }
     }
 }
 
-/* ===================================================================== */
-/* ===================  NAV INTERNO DEL DRAWER  ======================== */
-/* ===================================================================== */
 
 @Composable
 private fun DrawerNav(nav: NavHostController) {
@@ -216,22 +214,38 @@ private fun DrawerNav(nav: NavHostController) {
             NuevoSocioScreen(
                 onBack = { nav.popBackStack() },
                 onSaved = {
-                    // tras guardar, vuelve al menú de socios (o al inicio, como prefieras)
-                    nav.popBackStack()
+                    // tras guardar, ir directo a la lista:
+                    nav.navigate(DrawerRoutes.LISTA_SOCIOS) {
+                        launchSingleTop = true
+                        popUpTo(DrawerRoutes.SOCIOS_MENU) { inclusive = false }
+                    }
                 }
             )
         }
 
-        // LISTA DE SOCIOS (placeholder simple)
+        // EDITAR SOCIO
+        composable(route = DrawerRoutes.EDITAR_SOCIO) { backStackEntry ->
+            val socioId = backStackEntry.arguments?.getString("id")?.toIntOrNull() ?: 0
+            EditarSocioScreen(
+                socioId = socioId,
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // LISTA DE SOCIOS
         composable(DrawerRoutes.LISTA_SOCIOS) {
-            ListaSociosPlaceholder(
-                onVolver = { nav.popBackStack() }
+            ListaSociosScreen(
+                onBack = { nav.popBackStack() },
+                onNuevoSocio = { nav.navigate(DrawerRoutes.NUEVO_SOCIO) },
+                onEditarSocio = { socio ->
+                    nav.navigate("editar_socio/${socio.id}")
+                }
             )
         }
     }
 }
 
-/* ====================  Composables de ejemplo  ======================= */
+
 
 @Composable
 private fun InicioPanel() {
@@ -268,7 +282,7 @@ private fun SociosMenuScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Lista de opciones (botones tipo ítem)
+        // Lista de opciones
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = PanelBg),
@@ -315,126 +329,4 @@ private fun SociosMenuItem(
             .padding(horizontal = 4.dp)
     )
 }
-
-@Composable
-fun ListaSociosPlaceholder(
-    onVolver: () -> Unit
-) {
-    // Datos demo
-    val sociosDemo = remember {
-        listOf(
-            SocioDemo("Juan Pérez",     "12.345.678-5", "Básico",  true),
-            SocioDemo("Ana Gómez",      "16.789.123-2", "Oro",     true),
-            SocioDemo("Luis Alvarado",  "9.876.543-1",  "Plata",   false),
-            SocioDemo("María Torres",   "22.334.556-7", "Premium", true),
-            SocioDemo("Carlos Díaz",    "18.222.444-6", "Básico",  false),
-        )
-    }
-
-    var query by remember { mutableStateOf("") }
-    val filtrados = remember(query, sociosDemo) {
-        if (query.isBlank()) sociosDemo
-        else sociosDemo.filter {
-            it.nombre.contains(query, ignoreCase = true) ||
-                    it.rut.contains(query, ignoreCase = true) ||
-                    it.plan.contains(query, ignoreCase = true)
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = "Listado de Socios",
-            style = MaterialTheme.typography.titleLarge,
-            color = AzulPrimary,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            label = { Text("Buscar por nombre, RUT o plan") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Card(
-            modifier = Modifier.fillMaxSize(),
-            colors = CardDefaults.cardColors(containerColor = PanelBg),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-        ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(vertical = 6.dp)
-            ) {
-                items(filtrados) { socio ->
-                    ListItem(
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Filled.Person,
-                                contentDescription = null,
-                                tint = AzulPrimary
-                            )
-                        },
-                        headlineContent = {
-                            Text(socio.nombre, fontWeight = FontWeight.SemiBold)
-                        },
-                        supportingContent = {
-                            Text("${socio.rut} • Plan: ${socio.plan}")
-                        },
-                        trailingContent = {
-                            val chipColor = if (socio.activo) Color(0xFF2E7D32) else Color(0xFF9E9E9E)
-                            AssistChip(
-                                onClick = { /* noop demo */ },
-                                label = { Text(if (socio.activo) "Activo" else "Inactivo") },
-                                colors = AssistChipDefaults.assistChipColors(
-                                    labelColor = Color.White,
-                                    containerColor = chipColor
-                                )
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { /* abrir detalle, futuro */ }
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
-                    )
-                    Divider(color = Color.Black.copy(alpha = 0.06f))
-                }
-
-                if (filtrados.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("No se encontraron socios para “$query”.")
-                        }
-                    }
-                }
-
-                item { Spacer(Modifier.height(8.dp)) }
-                item {
-                    TextButton(onClick = onVolver, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                        Text("Volver")
-                    }
-                }
-                item { Spacer(Modifier.height(8.dp)) }
-            }
-        }
-    }
-}
-
-private data class SocioDemo(
-    val nombre: String,
-    val rut: String,
-    val plan: String,
-    val activo: Boolean
-)
 

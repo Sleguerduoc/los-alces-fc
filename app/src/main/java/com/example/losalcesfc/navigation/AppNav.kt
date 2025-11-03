@@ -38,7 +38,6 @@ fun AppNav() {
         }
     }
 
-    // Configuración principal de navegación
     NavHost(
         navController = nav,
         startDestination = Routes.LOGIN
@@ -57,7 +56,6 @@ fun AppNav() {
             )
         }
 
-        // --- HOME DE BIENVENIDA ---
         composable(Routes.HOME_WELCOME) {
             HomeScreen(
                 userName = "Usuario Prueba",
@@ -71,7 +69,6 @@ fun AppNav() {
             )
         }
 
-        // --- DRAWER (menú lateral con navegación interna) ---
         composable(Routes.DRAWER) {
             DrawerMenu(
                 userName = "Usuario Prueba",

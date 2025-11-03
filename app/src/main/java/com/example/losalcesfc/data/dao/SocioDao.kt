@@ -23,6 +23,9 @@ interface SocioDao {
     @Query("SELECT * FROM socios WHERE rut = :rut LIMIT 1")
     suspend fun obtenerSocioPorRut(rut: String): Socio?
 
+    @Query("SELECT * FROM socios WHERE id = :id LIMIT 1")
+    suspend fun obtenerSocioPorId(id: Int): Socio?
+
     // --- Actualizar datos de un socio ---
     @Update
     suspend fun actualizarSocio(socio: Socio)

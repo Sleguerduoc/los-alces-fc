@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -23,7 +24,10 @@ import com.example.losalcesfc.R
 import com.example.losalcesfc.ui.theme.*
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
-
+import com.example.losalcesfc.utils.vibrarCorto
+import com.example.losalcesfc.utils.vibrarError
+import com.example.losalcesfc.utils.sonidoConfirmacion
+import com.example.losalcesfc.utils.sonidoError
 
 @Composable
 fun LoginScreen(
@@ -32,15 +36,24 @@ fun LoginScreen(
 ) {
     val ui = viewModel.ui.collectAsState().value
     val focus = LocalFocusManager.current
+    val ctx = LocalContext.current
 
     // ---- Estados para "Olvidaste tu contraseña" + snackbar ----
     var forgotOpen by remember { mutableStateOf(false) }
     var forgotEmail by remember { mutableStateOf("") }
     var forgotError by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     fun isValidEmail(e: String) =
         Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$").matches(e)
+
+    LaunchedEffect(ui.authError) {
+        if (ui.authError != null) {
+            vibrarError(ctx)
+            sonidoError()
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -99,7 +112,6 @@ fun LoginScreen(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // Email / RUT
                     OutlinedTextField(
                         value = ui.emailOrRut,
                         onValueChange = { viewModel.onEmailChange(it) },
@@ -115,7 +127,6 @@ fun LoginScreen(
 
                     Spacer(Modifier.height(12.dp))
 
-                    // Password
                     var pwdVisible by remember { mutableStateOf(false) }
                     OutlinedTextField(
                         value = ui.password,
@@ -153,9 +164,13 @@ fun LoginScreen(
 
                     Spacer(Modifier.height(20.dp))
 
-                    // Botón dorado
                     Button(
-                        onClick = { viewModel.submit(onLoginSuccess) },
+                        onClick = {
+                            // feedback inmediato de acción
+                            vibrarCorto(ctx)
+                            sonidoConfirmacion()
+                            viewModel.submit(onLoginSuccess)
+                        },
                         enabled = !ui.isLoading,
                         shape = RoundedCornerShape(AppCornerRadius),
                         colors = ButtonDefaults.buttonColors(
@@ -195,9 +210,8 @@ fun LoginScreen(
             }
         }
     }
-    val scope = rememberCoroutineScope()
 
-    // ---- Diálogo de recuperación (demo) ----
+    // ---- Diálogo de recuperación ----
     if (forgotOpen) {
         AlertDialog(
             onDismissRequest = { forgotOpen = false },
@@ -222,22 +236,26 @@ fun LoginScreen(
                     )
                 }
             },
-
             confirmButton = {
-            TextButton(onClick = {
-                if (!isValidEmail(forgotEmail)) {
-                    forgotError = "Formato de correo inválido"
-                    return@TextButton
-                }
-
-                viewModel.sendResetEmail(forgotEmail) { _, message ->
-                    forgotOpen = false
-                    scope.launch {
-                        snackbarHostState.showSnackbar(message)
+                TextButton(onClick = {
+                    if (!isValidEmail(forgotEmail)) {
+                        forgotError = "Formato de correo inválido"
+                        // feedback de error
+                        vibrarError(ctx)
+                        sonidoError()
+                        return@TextButton
                     }
-                }
-            }) {
-                Text("Enviar") }
+
+                    viewModel.sendResetEmail(forgotEmail) { _, message ->
+                        forgotOpen = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar(message)
+                        }
+                        // pequeño feedback de confirmación de acción del diálogo
+                        vibrarCorto(ctx)
+                        sonidoConfirmacion()
+                    }
+                }) { Text("Enviar") }
             },
             dismissButton = {
                 TextButton(onClick = { forgotOpen = false }) { Text("Cancelar") }

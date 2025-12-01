@@ -66,7 +66,7 @@ fun AppNav() {
                 userName = "Usuario",
                 userEmail = null,
                 onLogout = {
-                    // LIMPIA SESIÓN + NAVEGA (¡sin LaunchedEffect aquí!)
+
                     scope.launch {
                         session.clear()
                         nav.navigate(Routes.LOGIN) {

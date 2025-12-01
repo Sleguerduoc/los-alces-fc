@@ -28,11 +28,12 @@ class SocioRepository private constructor(
 
         fun getInstance(context: Context): SocioRepository {
             return INSTANCE ?: synchronized(this) {
-                val db = SocioDatabase.getDatabase(context)
+                val db = SocioDatabase.getInstance(context.applicationContext)
                 val repo = SocioRepository(db.socioDao())
                 INSTANCE = repo
                 repo
             }
         }
+
     }
 }

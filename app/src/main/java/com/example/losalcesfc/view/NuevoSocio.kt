@@ -42,6 +42,17 @@ import com.example.losalcesfc.utils.vibrarCorto
 import com.example.losalcesfc.utils.vibrarError
 import com.example.losalcesfc.utils.sonidoConfirmacion
 import com.example.losalcesfc.utils.sonidoError
+import android.location.Geocoder
+import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.MapView
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.Locale
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +79,26 @@ fun NuevoSocioScreen(
     var errNombre by remember { mutableStateOf<String?>(null) }
     var errRut by remember { mutableStateOf<String?>(null) }
     var errEmail by remember { mutableStateOf<String?>(null) }
+    // Domicilio
+    var domicilio by remember { mutableStateOf("") }
+    var errDomicilio by remember { mutableStateOf<String?>(null) }
+
+    // Coordenadas asociadas al domicilio
+    var latitud by remember { mutableStateOf<Double?>(null) }
+    var longitud by remember { mutableStateOf<Double?>(null) }
+
+    // Mapa
+    var googleMap by remember { mutableStateOf<GoogleMap?>(null) }
+    var mapView by remember { mutableStateOf<MapView?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mapView?.onPause()
+            mapView?.onDestroy()
+        }
+    }
+
+
 
     fun validar(): Boolean {
         errNombre = if (nombre.isBlank()) "Nombre requerido" else null
@@ -217,6 +248,99 @@ fun NuevoSocioScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // --- Domicilio + mapa ---
+            OutlinedTextField(
+                value = domicilio,
+                onValueChange = {
+                    domicilio = it
+                    errDomicilio = null
+                },
+                label = { Text("Domicilio (calle, número, comuna)") },
+                isError = errDomicilio != null,
+                supportingText = {
+                    if (errDomicilio != null) {
+                        Text(errDomicilio!!)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                onClick = {
+                    if (domicilio.isBlank()) {
+                        errDomicilio = "Ingresa un domicilio para buscar"
+                        return@Button
+                    }
+
+                    scope.launch {
+                        try {
+                            val geocoder = Geocoder(context, Locale.getDefault())
+
+                            // Geocodificación en hilo de IO
+                            val results = withContext(Dispatchers.IO) {
+                                geocoder.getFromLocationName(domicilio, 1)
+                            }
+
+                            if (!results.isNullOrEmpty()) {
+                                val loc = results[0]
+                                val latLng = LatLng(loc.latitude, loc.longitude)
+                                latitud = loc.latitude
+                                longitud = loc.longitude
+
+                                googleMap?.let { map ->
+                                    map.clear()
+                                    map.addMarker(
+                                        MarkerOptions()
+                                            .position(latLng)
+                                            .title("Domicilio socio")
+                                    )
+                                    map.animateCamera(
+                                        CameraUpdateFactory.newLatLngZoom(latLng, 16f)
+                                    )
+                                }
+                            } else {
+                                snackbar.showSnackbar("No se encontró la dirección")
+                            }
+
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            snackbar.showSnackbar("Error al buscar la dirección")
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Ver domicilio en el mapa")
+            }
+
+            AndroidView(
+                factory = { ctx ->
+                    MapView(ctx).apply {
+                        mapView = this
+                        onCreate(null)
+
+                        getMapAsync { map ->
+                            googleMap = map
+
+                            // Posición inicial (Chile)
+                            val chile = LatLng(-33.45, -70.6667)
+                            map.moveCamera(
+                                CameraUpdateFactory.newLatLngZoom(chile, 5f)
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFFE0E0E0)) // solo para que se vea el borde del "cuadrado"
+            ) { mv ->
+                // Esto se ejecuta en recomposiciones
+                mv.onResume()
+            }
+
+
             ExposedDropdownMenuBox(
                 expanded = planExpanded,
                 onExpandedChange = { planExpanded = it }
@@ -272,7 +396,10 @@ fun NuevoSocioScreen(
                                 telefono = telefono.trim().ifBlank { null },
                                 plan = plan,
                                 activo = activo,
-                                fotoPath = fotoPath
+                                fotoPath = fotoPath,
+                                domicilio = domicilio.trim().ifBlank { null },
+                                latitud = latitud,
+                                longitud = longitud
                             )
                             socioVM.guardar(socio)
                             vibrarCorto(context); sonidoConfirmacion()

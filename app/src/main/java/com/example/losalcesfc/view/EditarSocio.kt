@@ -42,6 +42,17 @@ import com.example.losalcesfc.utils.vibrarCorto
 import com.example.losalcesfc.utils.vibrarError
 import com.example.losalcesfc.utils.sonidoConfirmacion
 import com.example.losalcesfc.utils.sonidoError
+import android.location.Geocoder
+import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.MapView
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.Locale
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +77,27 @@ fun EditarSocioScreen(
     var email by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
 
+    // Domicilio
+    var domicilio by remember { mutableStateOf("") }
+    var errDomicilio by remember { mutableStateOf<String?>(null) }
+
+    // Coordenadas
+    var latitud by remember { mutableStateOf<Double?>(null) }
+    var longitud by remember { mutableStateOf<Double?>(null) }
+
+    // Mapa
+    var googleMap by remember { mutableStateOf<GoogleMap?>(null) }
+    var mapView by remember { mutableStateOf<MapView?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mapView?.onPause()
+            mapView?.onDestroy()
+        }
+    }
+
+
+
     val planes = listOf("Básico", "Plata", "Oro", "Premium")
     var planExpanded by remember { mutableStateOf(false) }
     var plan by remember { mutableStateOf(planes.first()) }
@@ -86,6 +118,10 @@ fun EditarSocioScreen(
             plan = it.plan
             activo = it.activo
             fotoPath = it.fotoPath
+
+            domicilio = it.domicilio ?: ""
+            latitud = it.latitud
+            longitud = it.longitud
         }
     }
 
@@ -222,11 +258,120 @@ fun EditarSocioScreen(
                 label = { Text("Teléfono (opcional)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
-                    imeAction = ImeAction.Done,
+                    imeAction = ImeAction.Next,
                     keyboardType = KeyboardType.Phone
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // --- Domicilio y mapa ---
+            OutlinedTextField(
+                value = domicilio,
+                onValueChange = {
+                    domicilio = it
+                    errDomicilio = null
+                },
+                label = { Text("Domicilio (calle, número, comuna)") },
+                isError = errDomicilio != null,
+                supportingText = {
+                    if (errDomicilio != null) {
+                        Text(errDomicilio!!)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                onClick = {
+                    if (domicilio.isBlank()) {
+                        errDomicilio = "Ingresa un domicilio para buscar"
+                        return@Button
+                    }
+
+                    scope.launch {
+                        try {
+                            val geocoder = Geocoder(context, Locale.getDefault())
+
+                            val results = withContext(Dispatchers.IO) {
+                                geocoder.getFromLocationName(domicilio, 1)
+                            }
+
+                            if (!results.isNullOrEmpty()) {
+                                val loc = results[0]
+                                val latLng = LatLng(loc.latitude, loc.longitude)
+
+                                // Guardamos las coordenadas en el estado
+                                latitud = loc.latitude
+                                longitud = loc.longitude
+
+                                googleMap?.let { map ->
+                                    map.clear()
+                                    map.addMarker(
+                                        MarkerOptions()
+                                            .position(latLng)
+                                            .title("Domicilio socio")
+                                    )
+                                    map.animateCamera(
+                                        CameraUpdateFactory.newLatLngZoom(latLng, 16f)
+                                    )
+                                }
+                            } else {
+                                scope.launch { snackbar.showSnackbar("No se encontró la dirección") }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            scope.launch { snackbar.showSnackbar("Error al buscar la dirección") }
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Ver domicilio en el mapa")
+            }
+
+            AndroidView(
+                factory = { ctx ->
+                    MapView(ctx).apply {
+                        mapView = this
+                        onCreate(null)
+
+                        getMapAsync { map ->
+                            googleMap = map
+
+                            // Si tenemos coordenadas guardadas del socio, las usamos
+                            val initialLatLng = if (latitud != null && longitud != null) {
+                                LatLng(latitud!!, longitud!!)
+                            } else {
+                                LatLng(-33.45, -70.6667) // Chile
+                            }
+
+                            map.moveCamera(
+                                CameraUpdateFactory.newLatLngZoom(
+                                    initialLatLng,
+                                    if (latitud != null) 16f else 5f
+                                )
+                            )
+
+                            // Si había coordenadas, dibujamos el marcador
+                            if (latitud != null && longitud != null) {
+                                map.addMarker(
+                                    MarkerOptions()
+                                        .position(initialLatLng)
+                                        .title("Domicilio socio")
+                                )
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFFE0E0E0))
+            ) { mv ->
+                mv.onResume()
+            }
+
 
             ExposedDropdownMenuBox(
                 expanded = planExpanded,
@@ -295,7 +440,10 @@ fun EditarSocioScreen(
                             telefono = telefono.trim().ifBlank { null },
                             plan = plan,
                             activo = activo,
-                            fotoPath = fotoPath
+                            fotoPath = fotoPath,
+                            domicilio = domicilio.trim().ifBlank { null },
+                            latitud = latitud,
+                            longitud = longitud
                         )
 
                         scope.launch {

@@ -12,5 +12,8 @@ data class Socio(
     val telefono: String?,
     val plan: String,
     val activo: Boolean,
-    val fotoPath: String? = null // 👈 nuevo campo
+    val fotoPath: String? = null,
+    val domicilio: String? = null,
+    val latitud: Double? = null,
+    val longitud: Double? = null
 )

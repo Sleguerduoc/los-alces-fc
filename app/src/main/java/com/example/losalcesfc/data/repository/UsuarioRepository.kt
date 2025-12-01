@@ -9,7 +9,6 @@ class UsuarioRepository private constructor(context: Context) {
 
     private val dao = UsuarioDatabase.get(context).usuarioDao()
 
-    /* -------------------- CRUD BÁSICO -------------------- */
 
     fun obtenerTodos(): Flow<List<Usuario>> = dao.obtenerTodos()
     suspend fun obtenerPorId(id: Int) = dao.obtenerPorId(id)

@@ -213,7 +213,7 @@ fun NuevoUsuarioScreen(
                             rol = rol,
                             activo = activo,
                             fotoPath = null,
-                            password = passwordInput  // 👈 TEXTO PLANO
+                            password = passwordInput  //
                         )
 
                         scope.launch {
